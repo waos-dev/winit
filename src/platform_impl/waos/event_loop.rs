@@ -23,9 +23,8 @@ use std::time::Instant;
 use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use futures::stream::{Stream, StreamExt};
 use wasdk::system::{self, SystemChange};
-use wasdk::views::{ViewEvent, ViewFocusState};
+use wasdk::views::{View, ViewEvent, ViewFocusState};
 use wasdk::StreamReader;
-use wasdk_wgpu::SharedView;
 
 use super::keyboard::Keyboard;
 use super::pointer::Pointers;
@@ -42,7 +41,7 @@ use crate::window::{
 /// A window as it opened, for the event loop to read from then on.
 pub(super) struct OpenedWindow {
     pub(super) id: WindowId,
-    pub(super) view: SharedView,
+    pub(super) view: Arc<View>,
     pub(super) events: StreamReader<ViewEvent>,
     pub(super) focused: Arc<AtomicBool>,
 }

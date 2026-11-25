@@ -1,9 +1,9 @@
 //! A window: one of WaOS's views, with the window WaOS shows it in.
 //!
 //! WaOS opens a window when asked and sends its view later, where winit answers a window at
-//! once, so opening one waits here for its view (`view_requested`). What draws on the window
-//! reaches the view through the window's handle, which is the view's own (`wasdk-wgpu`'s
-//! `SharedView`).
+//! once, so opening one waits here for its view (`view_requested`). What draws on the window,
+//! or names it a dialog's parent, reaches the view through the window's handle, which is the
+//! view's own (`wasdk`'s, on `View`).
 //!
 //! The invariant: the view's events are taken once, as the window opens, and handed to the
 //! event loop (`ActiveEventLoop::opened`), which is the only reader of them.
@@ -16,7 +16,6 @@ use rwh_06::{HasDisplayHandle, HasWindowHandle};
 use wasdk::system::{self, Brightness};
 use wasdk::views::{self, Cursor as ViewCursor, View, ViewChange};
 use wasdk::windows::{self, WindowBackground, WindowConfig};
-use wasdk_wgpu::SharedView;
 
 use super::event_loop::OpenedWindow;
 use super::{ActiveEventLoop, MonitorHandle, OsError, WindowId};
@@ -30,7 +29,7 @@ use crate::window::{
 };
 
 pub struct Window {
-    view: SharedView,
+    view: Arc<View>,
     title: Mutex<String>,
     cursor: Mutex<ShownCursor>,
     focused: Arc<AtomicBool>,
@@ -52,7 +51,7 @@ impl Window {
         let config = window_config(&attributes);
         let view = view_requested(&config).map_err(|refusal| os_error!(OsError(refusal)))?;
         let window = Window {
-            view: SharedView::new(view),
+            view: Arc::new(view),
             title: Mutex::new(attributes.title.clone()),
             cursor: Mutex::new(ShownCursor { icon: ViewCursor::Default, visible: true }),
             focused: Arc::new(AtomicBool::new(false)),
@@ -267,12 +266,25 @@ impl Window {
         self.window().is_some_and(|window| window.is_maximized())
     }
 
+    /// The system's own full screen for a window, on the monitor named or the window's own;
+    /// WaOS shows a screen in one mode, so an exclusive mode is that too. Nothing for a view in
+    /// no window, which fills its screen as it is. The window is full screen once WaOS says so,
+    /// which a `Resized` follows.
     #[inline]
-    pub(crate) fn set_fullscreen(&self, _monitor: Option<Fullscreen>) {}
+    pub(crate) fn set_fullscreen(&self, fullscreen: Option<Fullscreen>) {
+        let Some(window) = self.window() else { return };
+        let screen = match &fullscreen {
+            Some(Fullscreen::Borderless(Some(monitor))) => Some(monitor.id),
+            Some(Fullscreen::Exclusive(mode)) => Some(mode.monitor.id),
+            Some(Fullscreen::Borderless(None)) | None => None,
+        };
+        window.set_fullscreen(fullscreen.is_some(), screen);
+    }
 
     #[inline]
     pub(crate) fn fullscreen(&self) -> Option<Fullscreen> {
-        None
+        let fullscreen = self.window().is_some_and(|window| window.is_fullscreen());
+        fullscreen.then(|| Fullscreen::Borderless(self.current_monitor()))
     }
 
     #[inline]
@@ -361,7 +373,8 @@ impl Window {
         Err(error::ExternalError::NotSupported(error::NotSupportedError::new()))
     }
 
-    /// The view's own handle, which `wasdk-wgpu` makes a surface from.
+    /// The view's own handle, which a renderer makes its surface from and a dialog finds its
+    /// parent by.
     #[inline]
     pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
         self.view.window_handle().map(|handle| handle.as_raw())
