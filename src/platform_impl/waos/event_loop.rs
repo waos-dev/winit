@@ -220,8 +220,11 @@ impl<T> Arrivals<T> {
         .await
     }
 
-    /// What has arrived already, if anything has, once WaOS had a turn to send it.
+    /// What has arrived already, if anything has, once WaOS had a turn to send it. The loop
+    /// runs inside a blocking wait, where only the blocking yield reaches WaOS; the awaited
+    /// one after it has the wait take in what WaOS sent.
     async fn ready(&mut self) -> Option<Arrival<T>> {
+        wasdk::yield_blocking();
         wasdk::yield_async().await;
         poll_fn(|context| match self.poll_next(context) {
             Poll::Ready(arrival) => Poll::Ready(Some(arrival)),
