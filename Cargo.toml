@@ -293,7 +293,13 @@ xkbcommon-dl = "0.4.2"
 orbclient = { version = "0.3.47", default-features = false }
 redox_syscall = "0.4.1"
 
-[target.'cfg(target_family = "wasm")'.dependencies]
+[target.'cfg(target_os = "wasi")'.dependencies]
+futures = "0.3"
+wasdk = { git = "https://github.com/waos-dev/waos", rev = "45379daeeec75cc4323547d1c90df2d0528b933f" }
+wasdk-wgpu = { git = "https://github.com/waos-dev/waos", rev = "45379daeeec75cc4323547d1c90df2d0528b933f" }
+web-time = "1"
+
+[target.'cfg(all(target_family = "wasm", target_os = "unknown"))'.dependencies]
 js-sys = "0.3.70"
 pin-project = "1"
 wasm-bindgen = "0.2.93"
@@ -351,11 +357,11 @@ web_sys = { package = "web-sys", version = "0.3.70", features = [
     "Worker",
 ] }
 
-[target.'cfg(all(target_family = "wasm", target_feature = "atomics"))'.dependencies]
+[target.'cfg(all(target_family = "wasm", target_os = "unknown", target_feature = "atomics"))'.dependencies]
 atomic-waker = "1"
 concurrent-queue = { version = "2", default-features = false }
 
-[target.'cfg(target_family = "wasm")'.dev-dependencies]
+[target.'cfg(all(target_family = "wasm", target_os = "unknown"))'.dev-dependencies]
 console_error_panic_hook = "0.1"
 tracing-web = "0.1"
 

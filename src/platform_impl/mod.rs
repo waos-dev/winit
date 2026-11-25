@@ -11,6 +11,8 @@ mod linux;
 mod macos;
 #[cfg(orbital_platform)]
 mod orbital;
+#[cfg(waos_platform)]
+mod waos;
 #[cfg(web_platform)]
 mod web;
 #[cfg(windows_platform)]
@@ -26,6 +28,8 @@ use linux as platform;
 use macos as platform;
 #[cfg(orbital_platform)]
 use orbital as platform;
+#[cfg(waos_platform)]
+use waos as platform;
 #[cfg(web_platform)]
 use web as platform;
 #[cfg(windows_platform)]
@@ -74,5 +78,6 @@ impl From<Fullscreen> for RootFullscreen {
     not(wayland_platform),
     not(web_platform),
     not(orbital_platform),
+    not(waos_platform),
 ))]
 compile_error!("The platform you're compiling for is not supported by winit");
