@@ -159,7 +159,7 @@ thread_local! {
 /// Starts `task` on the event loop, which runs it whenever it waits, until the task ends or the
 /// loop does. One started before the loop runs starts with it.
 pub(crate) fn spawn_local(task: impl Future<Output = ()> + 'static) {
-    STARTED.with_borrow_mut(|started| started.push(Box::pin(task)));
+    STARTED.with(|started| started.borrow_mut().push(Box::pin(task)));
 }
 
 /// What the loop waits on: every open window's events, the system's changes, and what the
@@ -193,9 +193,9 @@ impl<T> Arrivals<T> {
     /// Runs the app's tasks as far as each goes without waiting, those started meanwhile too.
     fn run_tasks(&mut self, context: &mut Context<'_>) {
         loop {
-            self.tasks.extend(STARTED.take());
+            self.tasks.extend(STARTED.with(|started| started.take()));
             while let Poll::Ready(Some(())) = self.tasks.poll_next_unpin(context) {}
-            if STARTED.with_borrow(Vec::is_empty) {
+            if STARTED.with(|started| started.borrow().is_empty()) {
                 return;
             }
         }
