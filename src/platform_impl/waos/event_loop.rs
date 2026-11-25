@@ -6,6 +6,11 @@
 //! for whichever has something first (`Arrivals`), or until the time the app asked to be woken
 //! at.
 //!
+//! The loop also runs the app's tasks (`spawn_local`). WaOS's own way to start one hands it
+//! to whichever wait runs next and makes that wait last until the task ends, so a task started
+//! just before a window is opened, or inside any other wait on the app's thread, would hold
+//! that wait for as long as it runs. A task started here is the loop's alone.
+//!
 //! The invariant: a window's events are read here and nowhere else, from the stream its
 //! window handed over as it opened (`ActiveEventLoop::opened`); once that stream ends, the
 //! window is destroyed and nothing more is said of it.
@@ -21,7 +26,8 @@ use std::task::{Context, Poll};
 use std::time::Instant;
 
 use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
-use futures::stream::{Stream, StreamExt};
+use futures::future::LocalBoxFuture;
+use futures::stream::{FuturesUnordered, Stream, StreamExt};
 use wasdk::system::{self, SystemChange};
 use wasdk::views::{View, ViewEvent, ViewFocusState};
 use wasdk::StreamReader;
@@ -145,9 +151,21 @@ enum Arrival<T> {
     ResumeTime,
 }
 
+thread_local! {
+    /// The tasks started since the loop last took them in.
+    static STARTED: RefCell<Vec<LocalBoxFuture<'static, ()>>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Starts `task` on the event loop, which runs it whenever it waits, until the task ends or the
+/// loop does. One started before the loop runs starts with it.
+pub(crate) fn spawn_local(task: impl Future<Output = ()> + 'static) {
+    STARTED.with_borrow_mut(|started| started.push(Box::pin(task)));
+}
+
 /// What the loop waits on: every open window's events, the system's changes, and what the
-/// app's proxies sent.
+/// app's proxies sent; and the app's tasks, which it runs as it waits.
 struct Arrivals<T> {
+    tasks: FuturesUnordered<LocalBoxFuture<'static, ()>>,
     windows: Vec<WindowEvents>,
     system: Pin<Box<dyn Stream<Item = SystemChange>>>,
     user: UnboundedReceiver<T>,
@@ -157,6 +175,7 @@ impl<T> Arrivals<T> {
     /// What arrived, if anything has: the windows' events before the system's changes, and
     /// the app's own last.
     fn poll_next(&mut self, context: &mut Context<'_>) -> Poll<Arrival<T>> {
+        self.run_tasks(context);
         for window in &mut self.windows {
             if let Poll::Ready(event) = window.events.poll_next_unpin(context) {
                 return Poll::Ready(Arrival::View(window.id, event));
@@ -169,6 +188,17 @@ impl<T> Arrivals<T> {
             return Poll::Ready(Arrival::User(event));
         }
         Poll::Pending
+    }
+
+    /// Runs the app's tasks as far as each goes without waiting, those started meanwhile too.
+    fn run_tasks(&mut self, context: &mut Context<'_>) {
+        loop {
+            self.tasks.extend(STARTED.take());
+            while let Poll::Ready(Some(())) = self.tasks.poll_next_unpin(context) {}
+            if STARTED.with_borrow(Vec::is_empty) {
+                return;
+            }
+        }
     }
 
     /// The next arrival, or the resume time where `resume_time` comes first.
@@ -213,6 +243,7 @@ impl<T: 'static> EventLoop<T> {
         let (user_events, user) = mpsc::unbounded();
         Ok(EventLoop {
             arrivals: Arrivals {
+                tasks: FuturesUnordered::new(),
                 windows: Vec::new(),
                 system: Box::pin(system::changes().into_stream()),
                 user,

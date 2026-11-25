@@ -12,6 +12,8 @@ pub mod macos;
 pub mod orbital;
 #[cfg(any(x11_platform, wayland_platform, docsrs))]
 pub mod startup_notify;
+#[cfg(waos_platform)]
+pub mod waos;
 #[cfg(any(wayland_platform, docsrs))]
 pub mod wayland;
 #[cfg(any(web_platform, docsrs))]

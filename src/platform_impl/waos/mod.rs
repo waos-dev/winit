@@ -16,7 +16,9 @@ use std::fmt::{self, Display, Formatter};
 
 use crate::dpi::{PhysicalPosition, PhysicalSize};
 
-pub(crate) use self::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy, OwnedDisplayHandle};
+pub(crate) use self::event_loop::{
+    spawn_local, ActiveEventLoop, EventLoop, EventLoopProxy, OwnedDisplayHandle,
+};
 mod event_loop;
 
 pub use self::window::Window;
