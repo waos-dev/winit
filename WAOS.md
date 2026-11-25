@@ -28,9 +28,10 @@ The fork asks for `wasdk` 0.7.1 with its `raw-window-handle` feature, which is o
 - Mouse, touch, trackpad gestures, keys with their modifiers, focus, size and scale, close requests and redraws arrive as winit's events. `request_redraw` asks WaOS for a frame.
 - Title, size and position, size limits, maximize and minimize, full screen, visibility, the cursor's icon, dragging the window, the screens as monitors, and the theme.
 - Full screen is the system's own for a window, on the monitor named or the window's own. winit has no event for it: a `Resized` follows, and `fullscreen()` answers how the window is. A view in no window, as on a phone, fills its screen as it is.
+- Input methods: while the app allows the IME (`set_ime_allowed`), the window's view holds WaOS's text input, and what an input method composes and commits arrives as `Ime::Preedit` and `Ime::Commit`, with `Ime::Enabled` before the first. As on macOS's winit, a character typed with nothing composed arrives as its key, with its text, so an app that reads both types it once. `set_ime_purpose` and `set_ime_cursor_area` reach WaOS, the latter placing the candidate window. WaOS's text input holds an empty field: each value an input method sends is turned into the step it is, and the field is told empty again once nothing is composed.
 
 ## What it leaves out
 
-- **Text typed through the system's text input** (an input method, a phone's keyboard): `set_ime_allowed` does nothing and no `Ime` event is sent. Keys from a keyboard carry their text.
-- **What WaOS sends and winit 0.30 has no event for**: the clipboard's and the Edit menu's commands (copy, cut, paste, undo), and the system's Back. A key's answer whether the app used it is always that it did.
+- **What an input method does to the text around the caret**: WaOS's field is empty between compositions, so a phone keyboard's suggestions that rewrite a word, or its backspace with nothing composed, have nothing to act on. Keys from a keyboard still delete.
+- **What WaOS sends and winit 0.30 has no event for**: the clipboard's and the Edit menu's commands (copy, cut, paste, undo), an input method's action (Enter arrives as its key), and the system's Back. A key's answer whether the app used it is always that it did.
 - Custom cursors, the window's icon, grabbing or moving the cursor, `raw-window-handle` before 0.6.

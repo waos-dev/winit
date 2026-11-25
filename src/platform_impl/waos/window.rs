@@ -14,10 +14,11 @@ use std::sync::{Arc, Mutex};
 
 use rwh_06::{HasDisplayHandle, HasWindowHandle};
 use wasdk::system::{self, Brightness};
-use wasdk::views::{self, Cursor as ViewCursor, View, ViewChange};
+use wasdk::views::{self, Cursor as ViewCursor, PixelRect, View, ViewChange};
 use wasdk::windows::{self, WindowBackground, WindowConfig};
 
 use super::event_loop::OpenedWindow;
+use super::ime::ImeSession;
 use super::{ActiveEventLoop, MonitorHandle, OsError, WindowId};
 use crate::cursor::Cursor;
 use crate::dpi::{LogicalSize, PhysicalPosition, PhysicalSize, Position, Size};
@@ -35,6 +36,7 @@ pub struct Window {
     focused: Arc<AtomicBool>,
     decorated: bool,
     resizable: AtomicBool,
+    ime: Arc<ImeSession>,
 }
 
 /// The cursor the app chose, and whether it is shown.
@@ -51,6 +53,7 @@ impl Window {
         let config = window_config(&attributes);
         let view = view_requested(&config).map_err(|refusal| os_error!(OsError(refusal)))?;
         let window = Window {
+            ime: Arc::new(ImeSession::of(&view)),
             view: Arc::new(view),
             title: Mutex::new(attributes.title.clone()),
             cursor: Mutex::new(ShownCursor { icon: ViewCursor::Default, visible: true }),
@@ -69,6 +72,7 @@ impl Window {
                 view: window.view.clone(),
                 events,
                 focused: Arc::clone(&window.focused),
+                ime: Arc::clone(&window.ime),
             });
         }
         Ok(window)
@@ -301,14 +305,31 @@ impl Window {
     #[inline]
     pub fn set_window_icon(&self, _window_icon: Option<crate::icon::Icon>) {}
 
+    /// Where the caret is, for the input method's candidate window, in the view's pixels.
     #[inline]
-    pub fn set_ime_cursor_area(&self, _position: Position, _size: Size) {}
+    pub fn set_ime_cursor_area(&self, position: Position, size: Size) {
+        let scale_factor = self.scale_factor();
+        let position = position.to_physical::<f64>(scale_factor);
+        let size = size.to_physical::<f64>(scale_factor);
+        self.ime.set_cursor_area(PixelRect {
+            x: position.x,
+            y: position.y,
+            width: size.width,
+            height: size.height,
+        });
+    }
+
+    /// WaOS's text input is taken for the window's view while the app allows the IME
+    /// (`ime`).
+    #[inline]
+    pub fn set_ime_allowed(&self, allowed: bool) {
+        self.ime.allow(allowed);
+    }
 
     #[inline]
-    pub fn set_ime_allowed(&self, _allowed: bool) {}
-
-    #[inline]
-    pub fn set_ime_purpose(&self, _purpose: ImePurpose) {}
+    pub fn set_ime_purpose(&self, purpose: ImePurpose) {
+        self.ime.set_purpose(purpose);
+    }
 
     #[inline]
     pub fn focus_window(&self) {}

@@ -36,6 +36,7 @@ use wasdk::system::{self, SystemChange};
 use wasdk::views::{View, ViewEvent, ViewFocusState};
 use wasdk::StreamReader;
 
+use super::ime::ImeSession;
 use super::keyboard::Keyboard;
 use super::pointer::Pointers;
 use super::window::theme_of;
@@ -54,6 +55,7 @@ pub(super) struct OpenedWindow {
     pub(super) view: Arc<View>,
     pub(super) events: StreamReader<ViewEvent>,
     pub(super) focused: Arc<AtomicBool>,
+    pub(super) ime: Arc<ImeSession>,
 }
 
 /// What the loop keeps of an open window, to make winit's events of its view's.
@@ -63,6 +65,7 @@ struct WindowEvents {
     pointers: Pointers,
     keyboard: Keyboard,
     focused: Arc<AtomicBool>,
+    ime: Arc<ImeSession>,
     /// The size and scale the app was last told of.
     size: PhysicalSize<u32>,
     scale_factor: f64,
@@ -77,6 +80,7 @@ impl WindowEvents {
             pointers: Pointers::new(),
             keyboard: Keyboard::default(),
             focused: opened.focused,
+            ime: opened.ime,
             size: PhysicalSize::new(metrics.width, metrics.height),
             scale_factor: metrics.device_pixel_ratio,
         }
@@ -112,12 +116,16 @@ impl WindowEvents {
                 events
             },
             ViewEvent::CloseRequested => vec![WindowEvent::CloseRequested],
-            // winit 0.30 has no event for these: the system's Back, text typed through the
-            // system's text input, and the clipboard's and the Edit menu's commands.
+            ViewEvent::TextInputEditingValue(value) => {
+                self.ime.value_changed(value).into_iter().map(WindowEvent::Ime).collect()
+            },
+            ViewEvent::TextInputClosed => {
+                self.ime.closed().into_iter().map(WindowEvent::Ime).collect()
+            },
+            // winit 0.30 has no event for these: the system's Back, an input method's action
+            // (Enter arrives as its key), and the clipboard's and the Edit menu's commands.
             ViewEvent::PopRoute
-            | ViewEvent::TextInputEditingValue(_)
             | ViewEvent::TextInputAction(_)
-            | ViewEvent::TextInputClosed
             | ViewEvent::Copy(_)
             | ViewEvent::Cut(_)
             | ViewEvent::Paste(_)

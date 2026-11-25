@@ -2,11 +2,12 @@
 //!
 //! A window is one of WaOS's views with the window it is shown in (`window`). The event loop
 //! runs on the app's one thread until the app ends, reading each view's events as they arrive
-//! (`event_loop`) and handing them on as winit's (`pointer`, `keyboard`).
+//! (`event_loop`) and handing them on as winit's (`pointer`, `keyboard`, and `ime` for the
+//! input methods' work, through the view's text input).
 //!
 //! What WaOS has and winit 0.30 has no place for is left out: the Edit menu's and the
-//! clipboard's commands a view is sent, and a key's answer whether the app used it, which is
-//! always that it did.
+//! clipboard's commands a view is sent, an input method's action, and a key's answer whether the
+//! app used it, which is always that it did.
 //!
 //! Only `raw-window-handle` 0.6 is served (`rwh_06`): a view's handle has no older form.
 
@@ -24,6 +25,7 @@ mod event_loop;
 pub use self::window::Window;
 mod window;
 
+mod ime;
 mod key_names;
 mod keyboard;
 mod pointer;
