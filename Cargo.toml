@@ -295,8 +295,8 @@ redox_syscall = "0.4.1"
 
 [target.'cfg(target_os = "wasi")'.dependencies]
 futures = "0.3"
-wasdk = { git = "https://github.com/waos-dev/waos", rev = "45379daeeec75cc4323547d1c90df2d0528b933f" }
-wasdk-wgpu = { git = "https://github.com/waos-dev/waos", rev = "45379daeeec75cc4323547d1c90df2d0528b933f" }
+wasdk = "0.7.1"
+wasdk-wgpu = "0.7.1"
 web-time = "1"
 
 [target.'cfg(all(target_family = "wasm", target_os = "unknown"))'.dependencies]

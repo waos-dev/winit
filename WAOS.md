@@ -18,7 +18,7 @@ Two things in the app's own code are WaOS's, because they are not winit's to giv
 - **The wgpu instance** is `wasdk_wgpu::instance()` in place of `wgpu::Instance::new`. A window's handle is its view's (`wasdk-wgpu`'s `SharedView`), which that instance makes a surface from.
 - **A wait on the app's thread** (for a wgpu adapter, say) is `wasdk::block_on`. An executor that parks the thread (`pollster`, `futures::executor::block_on`) never wakes: nothing else runs to wake it.
 
-The app and this fork must use the same `wasdk` and `wasdk-wgpu`, the ones this fork's `Cargo.toml` names.
+The fork asks for the published `wasdk` and `wasdk-wgpu` (0.7.1), and the app must draw with the same ones: an app that takes them from WaOS's repository instead names them in the same `[patch.crates-io]`, so the fork builds with those too.
 
 ## What it does
 
