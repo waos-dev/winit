@@ -1,4 +1,12 @@
-# For building this fork before the next wasdk is published: wasdk from WaOS's main branch, which
-# has a view's window handle and a window's full screen. Not committed.
+# Allow rust-analyzer and local `cargo doc` invocations to pick up unreleased changelog entries
+#
+# Note that these flags are (intentionally) not included when building from the downloaded crate.
+[build]
+rustflags = ["--cfg=unreleased_changelogs"]
+rustdocflags = ["--cfg=unreleased_changelogs"]
+
+# WaOS: until the next wasdk is published, this fork builds on its own against wasdk from WaOS's
+# main branch, which has a view's window handle and a window's full screen. An app taking the
+# fork names the same in its own `[patch.crates-io]` (WAOS.md); this file is not read for it.
 [patch.crates-io]
 wasdk = { git = "https://github.com/waos-dev/waos", branch = "main" }
