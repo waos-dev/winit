@@ -11,6 +11,10 @@
 //! just before a window is opened, or inside any other wait on the app's thread, would hold
 //! that wait for as long as it runs. A task started here is the loop's alone.
 //!
+//! Every turn of the loop gives WaOS a turn to send what it has, whatever the app asked to
+//! wait for: a wait does by waiting, and a poll or a resume time already reached by yielding
+//! (`Arrivals::ready`). Without it a loop that never waits would never hear its windows.
+//!
 //! The invariant: a window's events are read here and nowhere else, from the stream its
 //! window handed over as it opened (`ActiveEventLoop::opened`); once that stream ends, the
 //! window is destroyed and nothing more is said of it.
@@ -299,9 +303,12 @@ impl<T: 'static> EventLoop<T> {
                 },
                 ControlFlow::WaitUntil(requested_resume) => {
                     match self.arrivals.next(Some(requested_resume)).await {
-                        Arrival::ResumeTime => {
-                            (StartCause::ResumeTimeReached { start, requested_resume }, None)
-                        },
+                        // A time already reached waits for nothing, so WaOS has its turn
+                        // here: an app that leaves a past time set still hears its windows.
+                        Arrival::ResumeTime => (
+                            StartCause::ResumeTimeReached { start, requested_resume },
+                            self.arrivals.ready().await,
+                        ),
                         arrived => {
                             let requested_resume = Some(requested_resume);
                             (StartCause::WaitCancelled { start, requested_resume }, Some(arrived))
