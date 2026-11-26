@@ -19,7 +19,7 @@ Three things in the app's own code are WaOS's:
 - **A wait on the app's thread** (for a wgpu adapter, say) is `wasdk::block_on`. An executor that parks the thread (`pollster`, `futures::executor::block_on`) never wakes: nothing else runs to wake it.
 - **A task beside the loop** is `winit::platform::waos::spawn_local`, which the event loop runs whenever it waits. `wasdk::spawn` hands a task to whichever wait on the thread runs next and makes that wait last until the task ends, so a task that runs on, started inside a `wasdk::block_on` or just before a window is opened, would hold that call for good.
 
-The fork asks for `wasdk` 0.7.1 with its `raw-window-handle` feature, which is on WaOS's `main` branch and not published yet. Until the next `wasdk` release an app also names `wasdk` from WaOS's repository in the same `[patch.crates-io]` (`wasdk = { git = "https://github.com/waos-dev/waos", branch = "main" }`), and `wasdk-wgpu` with it, so the fork and the app's drawing use the same one.
+The fork asks for the published `wasdk` (0.8.0) with its `raw-window-handle` feature; an app draws with `wasdk-wgpu` of the same release, so the fork and the app's drawing use the same `wasdk`.
 
 ## What it does
 
